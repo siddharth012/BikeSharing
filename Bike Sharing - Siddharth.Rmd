@@ -1,0 +1,73 @@
+---
+title: "Bike Sharing - Siddharth"
+output: html_document
+---
+Data analysis using neural networks. But this isn't working for now
+```{r}
+setwd("C:/Users/Siddharth/SkyDrive/Documents/Kaggle/Bike Sharing")
+library(lubridate)
+library(ggplot2)
+library(caret)
+library(reshape2)
+library(ade4)
+library(nnet)
+library(neuralnet)
+sam <- read.csv("sampleSubmission.csv")
+train <- read.csv("train.csv")
+test <- read.csv("test.csv")
+
+# Convert variables to factors, where needed
+
+train$season <- as.factor(train$season)
+train$holiday <- as.factor(train$holiday)
+train$workingday <- as.factor(train$workingday)
+train$weather <- as.factor(train$weather)
+str(train)
+train$hour <- hour(train$datetime)
+train$datetime <- as.Date(train$datetime)
+train$weekday <- weekdays(train$datetime)
+train$hour <- as.factor(train$hour)
+train$weekday <- as.factor(train$weekday)
+train$month <- month(train$datetime)
+train$month <- as.factor(train$month)
+
+qplot(hour, count, data = train, facets = weekday~., color = weekday, geom = c("smooth", "point"))
+qplot(month, count, data = train, facets = weekday~., color = weekday, geom = c("smooth", "point"))
+
+# Our whole training data is converted into required factors/data types. Now we divide data into training and validation
+
+set.seed(101)
+intrain <- createDataPartition(train$count, p=0.7, list = F, times = 1)
+validation <- train[-intrain,]
+train <- train[intrain,]
+
+# These following two lines convert factor variables into numerical variables (you can also call it binary variables)
+
+Train <- with(train, data.frame(class.ind(season), class.ind(holiday), class.ind(workingday), class.ind(weather), temp, atemp, humidity, windspeed, class.ind(hour), class.ind(weekday), class.ind(month), count))
+Validation <- with(validation, data.frame(class.ind(season), class.ind(holiday), class.ind(workingday), class.ind(weather), temp, atemp, humidity, windspeed, class.ind(hour), class.ind(weekday), class.ind(month), count))
+
+# We save this into excel files for future references
+
+write.csv(Train, "FinalTrain.csv")
+write.csv(Validation, "FinalValidation.csv")
+
+# Normalizing numerical data
+
+for(i in 13:16){
+        Train[,i] = (Train[,i] - mean(Train[,i]))/(max(Train[,i]) - min(Train[,i]))
+}
+
+n <- names(Train)
+f <- as.formula(paste("count ~", paste(n[!n %in% "count"], collapse = " + "))) # We create the formula that  we want to write in neuralnet function.
+
+# This model didnt work. Reasons: model takes a lot of time to train, we may not be sure about the parameters. But i guess this is a really good approach for this kind of data.
+modelnn <- neuralnet(f, Train, hidden = c(5,5), threshold = 0.05)
+print(modelnn)
+plot(modelnn)
+TrainPredict <- compute(modelnn, Validation[,-ncol(Validation)])
+Error <- sqrt(mean((TrainPredict$net.result - Validation$count)^2))
+
+# modelnnet <- train(f, Train, method = 'nnet', linout = TRUE, size = 5)
+
+```
+
